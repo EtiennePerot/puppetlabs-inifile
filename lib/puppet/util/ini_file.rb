@@ -239,7 +239,11 @@ module Util
         #  file; for now assuming that this type is only used on
         #  small-ish config files that can fit into memory without
         #  too much trouble.
-        File.readlines(path)
+        _lines = []
+        f = File.open(path, 'rb').each_line do |line|
+          _lines << line
+        end
+        _lines
     end
 
     # This utility method scans through the lines for a section looking for
