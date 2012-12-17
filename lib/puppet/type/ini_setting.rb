@@ -61,6 +61,10 @@ Puppet::Type.newtype(:ini_setting) do
     end
   end
 
+  newparam(:content) do
+    desc 'ini-style string containing the sections/settings/values to apply to the target .ini file.'
+  end
+
   newparam(:key_val_separator) do
     desc 'The separator string to use between each setting name and value. ' +
         'Defaults to " = ", but you could use this to override e.g. whether ' +
@@ -79,15 +83,18 @@ Puppet::Type.newtype(:ini_setting) do
   end
 
   def eval_generate
-    return [] if self[:source].empty?
+    return [] if self[:source].empty? and self[:content].nil?
     content = nil
-    self[:source].each do |source|
-      if tmp = Puppet::FileServing::Content.indirection.find(source, :environment => self.catalog.environment)
-        content = tmp.content
-        break
+    content = self[:content] unless self[:content].nil?
+    unless self[:source].empty?
+      self[:source].each do |source|
+        if tmp = Puppet::FileServing::Content.indirection.find(source, :environment => self.catalog.environment)
+          content = tmp.content
+          break
+        end
       end
+      fail 'Could not find any valid source URLs' unless content
     end
-    fail 'Could not find any valid source URLs' unless content
     source_ini = Puppet::Util::IniFile.new(content, self[:key_val_separator], false)
     children = []
     title = self[:name]
@@ -95,6 +102,7 @@ Puppet::Type.newtype(:ini_setting) do
       source_ini.section_settings(section).each do |setting|
         options = @original_parameters.merge(
           :source  => [],
+          :content => nil,
           :section => section,
           :setting => setting,
           :value   => source_ini.get_value(section, setting),
